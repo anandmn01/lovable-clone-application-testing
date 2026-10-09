@@ -31,3 +31,10 @@ lerna-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Java / Maven
+target/
+**/target/
+.mvn/wrapper/maven-wrapper.jar
+*.class
+
