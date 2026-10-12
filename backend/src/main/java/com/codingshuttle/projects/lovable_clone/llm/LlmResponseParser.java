@@ -27,20 +27,30 @@ public class LlmResponseParser {
      */
 
     private static final Pattern GENERIC_TAG_PATTERN = Pattern.compile(
-            "(<(message|file|tool)([^>]*)>)([\\s\\S]*?)(</\\2>)",
+            "(<(message|file|tool)([^>]*)>)([\\s\\S]*?)(</\\2>|$)",
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL
     );
 
-    // Helper to extract specific attributes (path="..." or args="...") from Group 3
+    // Helper to extract specific attributes (path="..." or path='...' or args="...") from Group 3
     private static final Pattern ATTRIBUTE_PATTERN = Pattern.compile(
-            "(path|args)=\"([^\"]+)\""
+            "(path|args)=[\"']([^\"']+)[\"']",
+            Pattern.CASE_INSENSITIVE
     );
 
     public List<ChatEvent> parseChatEvents(String fullResponse, ChatMessage parentMessage) {
         List<ChatEvent> events = new ArrayList<>();
+        if (fullResponse == null || fullResponse.isBlank()) return events;
+
+        // Strip markdown backticks if model wrapped XML output in ```xml ... ```
+        String cleanResponse = fullResponse.trim();
+        if (cleanResponse.startsWith("```")) {
+            cleanResponse = cleanResponse.replaceFirst("^```[a-zA-Z]*\\s*", "");
+            cleanResponse = cleanResponse.replaceFirst("\\s*```$", "");
+        }
+
         int orderCounter = 1;
 
-        Matcher matcher = GENERIC_TAG_PATTERN.matcher(fullResponse);
+        Matcher matcher = GENERIC_TAG_PATTERN.matcher(cleanResponse);
 
         while (matcher.find()) {
             String tagName = matcher.group(2).toLowerCase();
@@ -58,10 +68,14 @@ public class LlmResponseParser {
             switch (tagName) {
                 case "message" -> builder.type(ChatEventType.MESSAGE);
                 case "file" -> {
+                    String filePath = attrMap.get("path");
                     builder.type(ChatEventType.FILE_EDIT);
-                    builder.filePath(attrMap.get("path")); // Required for files
-//                    builder.content(null);
+                    builder.filePath(filePath);
+                    if (filePath != null) {
+                        events.removeIf(e -> e.getType() == ChatEventType.FILE_EDIT && filePath.equals(e.getFilePath()));
+                    }
                 }
+
                 case "tool" -> {
                     builder.type(ChatEventType.TOOL_LOG);
                     builder.metadata(attrMap.get("args")); // Store raw file list in metadata

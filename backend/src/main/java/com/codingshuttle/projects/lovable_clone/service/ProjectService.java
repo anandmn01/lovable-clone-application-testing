@@ -17,4 +17,6 @@ public interface ProjectService {
     ProjectResponse updateProject(Long id, ProjectRequest request);
 
     void softDelete(Long id);
+
+    String getProjectPreviewHtml(Long id);
 }

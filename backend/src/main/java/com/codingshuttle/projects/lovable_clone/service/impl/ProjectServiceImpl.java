@@ -120,6 +120,91 @@ public class ProjectServiceImpl implements ProjectService {
         projectRepository.save(project);
     }
 
+    @Override
+    public String getProjectPreviewHtml(Long projectId) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Project", projectId.toString()));
+
+        String projectName = project.getName() != null ? project.getName() : "Project " + projectId;
+
+        return """
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                  <meta charset="UTF-8" />
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                  <title>%s Preview</title>
+                  <script src="https://cdn.tailwindcss.com"></script>
+                  <style>
+                    body {
+                      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                    }
+                  </style>
+                </head>
+                <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-center p-6">
+                  <div class="max-w-md w-full bg-slate-800/80 backdrop-blur border border-slate-700/60 rounded-2xl p-6 shadow-2xl text-center space-y-5">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                      Preview Live
+                    </div>
+
+                    <h1 class="text-2xl font-bold tracking-tight text-white">%s</h1>
+                    <p class="text-sm text-slate-400">
+                      This is the live sandboxed preview of your project. Code changes made via the AI assistant will be reflected here.
+                    </p>
+
+                    <!-- Interactive Demo Counter Component -->
+                    <div class="bg-slate-900/60 border border-slate-700/40 rounded-xl p-4 flex items-center justify-between">
+                      <span class="text-sm font-medium text-slate-300">Interactive Counter</span>
+                      <div class="flex items-center gap-3">
+                        <button onclick="updateCount(-1)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center font-bold transition-all">-</button>
+                        <span id="counter" class="text-lg font-bold text-indigo-400 w-6">0</span>
+                        <button onclick="updateCount(1)" class="w-8 h-8 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center font-bold transition-all">+</button>
+                      </div>
+                    </div>
+
+                    <!-- Test Runtime Error Trigger -->
+                    <div class="pt-2 border-t border-slate-700/50 flex flex-col gap-2">
+                      <button onclick="triggerTestError()" class="w-full text-xs py-2 px-3 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all font-medium">
+                        Simulate Runtime Error (Test Auto-Fix)
+                      </button>
+                    </div>
+                  </div>
+
+                  <script>
+                    let count = 0;
+                    function updateCount(delta) {
+                      count += delta;
+                      document.getElementById('counter').innerText = count;
+                    }
+
+                    function triggerTestError() {
+                      throw new Error("Uncaught TypeError: Cannot read properties of undefined (reading 'renderDemo') at App.tsx:18:24");
+                    }
+
+                    // Forward errors to parent IDE frame
+                    window.onerror = function(message, source, lineno, colno, error) {
+                      if (window.parent) {
+                        window.parent.postMessage({
+                          type: 'PreviewError',
+                          subType: 'Runtime',
+                          payload: {
+                            message: message,
+                            source: source || 'App.tsx',
+                            lineno: lineno || 18,
+                            colno: colno || 24,
+                            stack: error ? error.stack : 'Error: ' + message
+                          }
+                        }, '*');
+                      }
+                      return false;
+                    };
+                  </script>
+                </body>
+                </html>
+                """.formatted(projectName, projectName);
+    }
+
     ///  INTERNAL FUNCTIONS
 
     public Project getAccessibleProjectById(Long projectId, Long userId) {
@@ -127,3 +212,4 @@ public class ProjectServiceImpl implements ProjectService {
                 .orElseThrow(() -> new ResourceNotFoundException("Project", projectId.toString()));
     }
 }
+

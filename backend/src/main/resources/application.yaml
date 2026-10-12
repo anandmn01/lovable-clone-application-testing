@@ -4,7 +4,7 @@ spring:
     description: this is application
 
   datasource:
-    url: jdbc:postgresql://localhost:9010/pgvector-test
+    url: jdbc:postgresql://localhost:9010/pgvector-test?options=-c%20timezone=UTC
     username: user
     password: password
     driver-class-name: org.postgresql.Driver
@@ -20,17 +20,17 @@ spring:
 
   ai:
     openai:
-      api-key:
+      api-key: ${OPENROUTER_API_KEY:your_openrouter_api_key_here}
       base-url: https://openrouter.ai/api
       chat:
         options:
-#          model: x-ai/grok-code-fast-1
-          model: google/gemini-3-flash-preview
+          model: cohere/north-mini-code:free
+#          model: nvidia/nemotron-3.5-lightning:free
           temperature: 0.0
 
 
 jwt:
-  secret-key: as9b7aodlbjfkluosfd789ujeklfnlsduf90b8ha908w74tuqijvlckajdl
+  secret-key: bedee1a3d7c549eaaea08852aa8782c528f9c0f5fb9541df8a044197efa1dbf7
 
 stripe:
   api:
@@ -38,7 +38,7 @@ stripe:
   webhook:
     secret: ${STRIPE_WEBHOOK_SECRET:your_stripe_webhook_secret_here}
 
-client.url: http://localhost:8080
+client.url: http://localhost:5173
 
 logging:
   level:
@@ -46,7 +46,7 @@ logging:
       chat.client: DEBUG
 
 minio:
-  url: http://localhost:9000          # or minio:9000 if inside docker network
+  url: http://localhost:9000
   access-key: minioadmin
-  secret-key: minioadmin123
+  secret-key: LocalMinioDev2026_ChangeMe
   project-bucket: projects

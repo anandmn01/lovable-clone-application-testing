@@ -1,5 +1,6 @@
 package com.codingshuttle.projects.lovable_clone.controller;
 
+import com.codingshuttle.projects.lovable_clone.dto.project.DeployResponse;
 import com.codingshuttle.projects.lovable_clone.dto.project.ProjectRequest;
 import com.codingshuttle.projects.lovable_clone.dto.project.ProjectResponse;
 import com.codingshuttle.projects.lovable_clone.dto.project.ProjectSummaryResponse;
@@ -8,7 +9,9 @@ import com.codingshuttle.projects.lovable_clone.service.ProjectService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -46,7 +49,20 @@ public class ProjectController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{id}/deploy")
+    @PreAuthorize("@security.canEditProject(#id)")
+    public ResponseEntity<DeployResponse> deployProject(@PathVariable Long id) {
+        String previewUrl = "http://localhost:8080/api/projects/" + id + "/preview";
+        return ResponseEntity.ok(new DeployResponse(previewUrl));
+    }
+
+    @GetMapping(value = "/{id}/preview", produces = MediaType.TEXT_HTML_VALUE)
+    public ResponseEntity<String> getProjectPreview(@PathVariable Long id) {
+        return ResponseEntity.ok(projectService.getProjectPreviewHtml(id));
+    }
+
 }
+
 
 
 

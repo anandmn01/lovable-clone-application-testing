@@ -163,7 +163,8 @@ export const api = {
     });
 
     if (!response.ok) {
-      throw new Error("Deployment failed");
+      const errorText = await response.text();
+      throw new Error(errorText || "Deployment failed");
     }
 
     return response.json();
@@ -321,7 +322,17 @@ export const api = {
       signal: controller.signal,
     })
       .then(async (response) => {
-        if (!response.ok) throw new Error("Chat stream failed");
+        if (!response.ok) {
+          const errText = await response.text();
+          let parsedMsg = "Chat stream failed";
+          try {
+            const errJson = JSON.parse(errText);
+            parsedMsg = errJson.message || errJson.error?.message || errJson.error || errText;
+          } catch {
+            if (errText) parsedMsg = errText;
+          }
+          throw new Error(parsedMsg);
+        }
 
         const reader = response.body?.getReader();
         if (!reader) throw new Error("No reader available");

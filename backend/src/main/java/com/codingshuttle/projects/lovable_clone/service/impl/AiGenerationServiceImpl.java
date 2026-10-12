@@ -93,27 +93,48 @@ public class AiGenerationServiceImpl implements AiGenerationService {
                         usageRef.set(response.getMetadata().getUsage());
                     }
 
-                    fullResponseBuffer.append(content);
+                    if (content != null) {
+                        fullResponseBuffer.append(content);
+                    }
                 })
                 .doOnComplete(() -> {
                     Schedulers.boundedElastic().schedule(() -> {
-//                        parseAndSaveFiles(fullResponseBuffer.toString(), projectId);
-
-                        long duration = (endTime.get() - startTime.get()) /  1000;
-                        finalizeChats(userMessage, chatSession, fullResponseBuffer.toString(), duration, usageRef.get());
+                        try {
+                            long duration = endTime.get() > 0 ? (endTime.get() - startTime.get()) / 1000 : 0;
+                            finalizeChats(userMessage, chatSession, fullResponseBuffer.toString(), duration, usageRef.get());
+                        } catch (Exception e) {
+                            log.error("Failed to finalize chats for projectId: {}", projectId, e);
+                        }
                     });
                 })
-                .doOnError(error -> log.error("Error during streaming for projectId: {}", projectId))
                 .map(response -> {
                     String text = response.getResult().getOutput().getText();
                     return new StreamResponse(text != null ? text : "");
+                })
+                .onErrorResume(error -> {
+                    log.error("Error during streaming for projectId: {}", projectId, error);
+                    String userMsg = "AI generation failed. Please check your model configuration.";
+                    String errStr = error.getMessage() != null ? error.getMessage() : "";
+                    if (errStr.contains("429") || errStr.toLowerCase().contains("rate limit")) {
+                        userMsg = "⚠️ OpenRouter daily free tier limit exceeded (50/50 requests used today). Please provide a new API key in application.yaml or wait for the daily quota reset at 05:30 AM.";
+                    }
+                    String finalErrorXml = "<message phase=\"completed\">" + userMsg + "</message>";
+                    Schedulers.boundedElastic().schedule(() -> {
+                        try {
+                            finalizeChats(userMessage, chatSession, finalErrorXml, 0L, null);
+                        } catch (Exception ex) {
+                            log.error("Failed to finalize error chat: {}", ex.getMessage());
+                        }
+                    });
+                    return Flux.just(new StreamResponse(finalErrorXml));
                 });
+
     }
 
     private void finalizeChats(String userMessage, ChatSession chatSession, String fullText, Long duration, Usage usage) {
         Long projectId = chatSession.getProject().getId();
 
-        if(usage != null) {
+        if (usage != null) {
             int totalTokens = usage.getTotalTokens();
             usageService.recordTokenUsage(chatSession.getUser().getId(), totalTokens);
         }
@@ -124,15 +145,15 @@ public class AiGenerationServiceImpl implements AiGenerationService {
                         .chatSession(chatSession)
                         .role(MessageRole.USER)
                         .content(userMessage)
-                        .tokensUsed(usage.getPromptTokens())
+                        .tokensUsed(usage != null ? usage.getPromptTokens() : 0)
                         .build()
         );
 
         ChatMessage assistantChatMessage = ChatMessage.builder()
                 .role(MessageRole.ASSISTANT)
-                .content("Assistant Message here...")
+                .content(fullText)
                 .chatSession(chatSession)
-                .tokensUsed(usage.getCompletionTokens())
+                .tokensUsed(usage != null ? usage.getCompletionTokens() : 0)
                 .build();
 
         assistantChatMessage = chatMessageRepository.save(assistantChatMessage);
@@ -141,13 +162,19 @@ public class AiGenerationServiceImpl implements AiGenerationService {
         chatEventList.addFirst(ChatEvent.builder()
                         .type(ChatEventType.THOUGHT)
                         .chatMessage(assistantChatMessage)
-                        .content("Thought for "+duration+"s")
+                        .content("Thought for " + duration + "s")
                         .sequenceOrder(0)
                 .build());
 
         chatEventList.stream()
-                .filter(e -> e.getType() == ChatEventType.FILE_EDIT)
-                .forEach(e -> projectFileService.saveFile(projectId, e.getFilePath(), e.getContent()));
+                .filter(e -> e.getType() == ChatEventType.FILE_EDIT && e.getFilePath() != null && !e.getFilePath().isBlank())
+                .forEach(e -> {
+                    try {
+                        projectFileService.saveFile(projectId, e.getFilePath(), e.getContent());
+                    } catch (Exception ex) {
+                        log.error("Failed to save file {} for project {}: {}", e.getFilePath(), projectId, ex.getMessage());
+                    }
+                });
 
         chatEventRepository.saveAll(chatEventList);
     }
