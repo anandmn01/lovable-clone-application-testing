@@ -116,7 +116,11 @@ public class AiGenerationServiceImpl implements AiGenerationService {
                     String userMsg = "AI generation failed. Please check your model configuration.";
                     String errStr = error.getMessage() != null ? error.getMessage() : "";
                     if (errStr.contains("429") || errStr.toLowerCase().contains("rate limit")) {
-                        userMsg = "⚠️ OpenRouter daily free tier limit exceeded (50/50 requests used today). Please provide a new API key in application.yaml or wait for the daily quota reset at 05:30 AM.";
+                        userMsg = "⚠️ Gemini API rate limit or quota exceeded. Please check your Google AI Studio quota or try again shortly.";
+                    } else if (errStr.contains("503") || errStr.toLowerCase().contains("high demand")) {
+                        userMsg = "⚠️ Gemini model is currently experiencing high demand (503). Please try again in a few moments.";
+                    } else if (!errStr.isBlank()) {
+                        userMsg = "AI generation failed: " + errStr;
                     }
                     String finalErrorXml = "<message phase=\"completed\">" + userMsg + "</message>";
                     Schedulers.boundedElastic().schedule(() -> {

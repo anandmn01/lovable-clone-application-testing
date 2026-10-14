@@ -23,7 +23,9 @@ import java.io.InputStream;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -114,5 +116,29 @@ public class ProjectFileServiceImpl implements ProjectFileService {
         if (path.endsWith(".css")) return "text/css";
 
         return "text/plain";
+    }
+
+    @Override
+    public Map<String, String> getAllFileContents(Long projectId) {
+        List<ProjectFile> projectFiles = projectFileRepository.findByProjectId(projectId);
+        Map<String, String> contents = new LinkedHashMap<>();
+
+        for (ProjectFile file : projectFiles) {
+            try {
+                String objectName = projectId + "/" + file.getPath();
+                try (InputStream is = minioClient.getObject(
+                        GetObjectArgs.builder()
+                                .bucket(BUCKET_NAME)
+                                .object(objectName)
+                                .build())) {
+                    String content = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                    contents.put(file.getPath(), content);
+                }
+            } catch (Exception e) {
+                log.warn("Skipping unreadable file: {}/{}", projectId, file.getPath(), e);
+            }
+        }
+
+        return contents;
     }
 }

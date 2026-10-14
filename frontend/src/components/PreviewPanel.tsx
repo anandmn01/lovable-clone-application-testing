@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Play, Loader2, ExternalLink, RefreshCw, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api, PREVIEW_URL_KEY } from "@/lib/api";
@@ -11,9 +11,10 @@ interface PreviewPanelProps {
   runtimeError: RuntimeError | null;
   onDismiss: () => void;
   onFix: (error: RuntimeError) => void;
+  isStreaming?: boolean;
 }
 
-export function PreviewPanel({ projectId, runtimeError, onDismiss, onFix }: PreviewPanelProps) {
+export function PreviewPanel({ projectId, runtimeError, onDismiss, onFix, isStreaming }: PreviewPanelProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(() => {
     // Load from localStorage on mount
     return localStorage.getItem(PREVIEW_URL_KEY);
@@ -27,6 +28,21 @@ export function PreviewPanel({ projectId, runtimeError, onDismiss, onFix }: Prev
       localStorage.setItem(PREVIEW_URL_KEY, previewUrl);
     }
   }, [previewUrl]);
+
+  // Auto-refresh preview iframe when AI stream completes
+  const prevStreamingRef = useRef(isStreaming);
+  useEffect(() => {
+    if (prevStreamingRef.current && !isStreaming && previewUrl) {
+      const timer = setTimeout(() => {
+        const iframe = document.querySelector("iframe");
+        if (iframe) {
+          iframe.src = iframe.src;
+        }
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+    prevStreamingRef.current = isStreaming;
+  }, [isStreaming, previewUrl]);
 
   const handleDeploy = async () => {
     setIsDeploying(true);

@@ -445,6 +445,7 @@ Please analyze this error and fix the code to resolve it.`;
                     runtimeError={runtimeError}
                     onDismiss={() => setRuntimeError(null)}
                     onFix={handleFixError}
+                    isStreaming={isStreaming}
                   />
                 </div>
               </div>

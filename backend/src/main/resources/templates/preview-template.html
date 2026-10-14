@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>__PROJECT_NAME__ – Preview</title>
+
+    <!-- React 18 UMD builds -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+    <!-- Babel Standalone – transpiles JSX/TSX in the browser -->
+    <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+
+    <!-- Tailwind CSS (CDN play version) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- daisyUI component CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5/dist/full.min.css" rel="stylesheet" type="text/css"/>
+
+    <!-- ======== Project CSS (injected from MinIO) ======== -->
+    <style>
+__CSS_BLOCK__
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        var React = window.React;
+        var ReactDOM = window.ReactDOM;
+
+        // ================================================================
+        // 1. VIRTUAL FILE SYSTEM  –  populated by the backend
+        // ================================================================
+        var files = {};
+__FILE_REGISTRATIONS__
+
+        // ================================================================
+        // 2. EXTERNAL PACKAGE STUBS
+        //    Packages loaded via CDN or shimmed so project code can
+        //    "require" them without a real bundler.
+        // ================================================================
+
+        // --- clsx / tailwind-merge helpers ---
+        function joinClasses() {
+            var out = [];
+            for (var i = 0; i < arguments.length; i++) {
+                var a = arguments[i];
+                if (!a) continue;
+                if (typeof a === 'string') out.push(a);
+                else if (Array.isArray(a)) out.push(joinClasses.apply(null, a));
+                else if (typeof a === 'object') {
+                    for (var k in a) { if (a.hasOwnProperty(k) && a[k]) out.push(k); }
+                }
+            }
+            return out.join(' ');
+        }
+
+        // --- class-variance-authority (cva) basic stub ---
+        function cvaStub(base, config) {
+            return function (props) {
+                var result = base || '';
+                if (config && config.variants && props) {
+                    var keys = Object.keys(config.variants);
+                    for (var i = 0; i < keys.length; i++) {
+                        var key = keys[i];
+                        var val = props[key] || (config.defaultVariants && config.defaultVariants[key]);
+                        if (val && config.variants[key][val]) result += ' ' + config.variants[key][val];
+                    }
+                }
+                if (props && props.className) result += ' ' + props.className;
+                return result;
+            };
+        }
+
+        // --- @radix-ui/react-slot stub ---
+        var SlotComponent = React.forwardRef(function (props, ref) {
+            var children = props.children;
+            var rest = Object.assign({}, props);
+            delete rest.children;
+            delete rest.asChild;
+            if (props.asChild && React.isValidElement(children)) {
+                return React.cloneElement(children, Object.assign({}, rest, { ref: ref }));
+            }
+            return React.createElement('span', Object.assign({ ref: ref }, rest), children);
+        });
+
+        // --- lucide-react icon proxy ---
+        var lucideProxy = new Proxy({}, {
+            get: function (_, prop) {
+                if (typeof prop !== 'string') return undefined;
+                var Icon = React.forwardRef(function (p, ref) {
+                    return React.createElement('svg', Object.assign({
+                        xmlns: 'http://www.w3.org/2000/svg',
+                        width: p.size || 24, height: p.size || 24,
+                        viewBox: '0 0 24 24', fill: 'none',
+                        stroke: 'currentColor', strokeWidth: 2,
+                        strokeLinecap: 'round', strokeLinejoin: 'round'
+                    }, p, { ref: ref, children: undefined }),
+                        React.createElement('circle', { cx: 12, cy: 12, r: 10, opacity: 0.15 }),
+                        React.createElement('text', {
+                            x: 12, y: 16, textAnchor: 'middle',
+                            fontSize: 10, fill: 'currentColor', stroke: 'none'
+                        }, prop.charAt(0))
+                    );
+                });
+                Icon.displayName = prop;
+                return Icon;
+            }
+        });
+
+        // --- External package registry ---
+        var externals = {
+            'react':            React,
+            'react-dom':        ReactDOM,
+            'react-dom/client':  ReactDOM,
+            'react/jsx-runtime': {
+                jsx:      React.createElement,
+                jsxs:     React.createElement,
+                jsxDEV:   React.createElement,
+                Fragment: React.Fragment
+            },
+            'lucide-react':     lucideProxy,
+            'clsx':             { clsx: joinClasses, default: joinClasses, __esModule: true },
+            'tailwind-merge':   { twMerge: function () { return Array.prototype.slice.call(arguments).filter(Boolean).join(' '); } },
+            'class-variance-authority': { cva: cvaStub, __esModule: true },
+            '@radix-ui/react-slot':     { Slot: SlotComponent },
+
+            // Common React ecosystem stubs
+            'sonner':           { toast: function () {}, Toaster: function () { return null; } },
+            'next-themes':      { useTheme: function () { return { theme: 'light', setTheme: function () {} }; }, ThemeProvider: function(p){return p.children;} },
+            'react-router-dom': {
+                BrowserRouter:  function (p) { return p.children; },
+                HashRouter:     function (p) { return p.children; },
+                Routes:         function (p) { return p.children; },
+                Route:          function (p) { return p.element || null; },
+                Link:           React.forwardRef(function (p, r) { return React.createElement('a', Object.assign({ href: p.to, ref: r }, p)); }),
+                NavLink:        React.forwardRef(function (p, r) { return React.createElement('a', Object.assign({ href: p.to, ref: r }, p)); }),
+                useNavigate:    function () { return function () {}; },
+                useParams:      function () { return {}; },
+                useLocation:    function () { return { pathname: '/', search: '', hash: '' }; },
+                useSearchParams:function () { return [new URLSearchParams(), function () {}]; },
+                Outlet:         function () { return null; }
+            },
+            '@tanstack/react-query': {
+                QueryClient:       function () { return {}; },
+                QueryClientProvider: function (p) { return p.children; },
+                useQuery:          function () { return { data: null, isLoading: false, error: null }; },
+                useMutation:       function () { return { mutate: function () {}, isLoading: false }; }
+            }
+        };
+
+        // ================================================================
+        // 3. MODULE RESOLVER  –  handles relative paths + @ alias
+        // ================================================================
+        function resolvePath(fromPath, importPath) {
+            if (importPath.startsWith('@/')) {
+                importPath = 'src/' + importPath.substring(2);
+            }
+            if (!importPath.startsWith('.') && !importPath.startsWith('/')) {
+                return importPath;
+            }
+            var fromDir = fromPath.substring(0, fromPath.lastIndexOf('/'));
+            var segments = (fromDir ? fromDir + '/' + importPath : importPath).split('/');
+            var resolved = [];
+            for (var i = 0; i < segments.length; i++) {
+                if (segments[i] === '..') resolved.pop();
+                else if (segments[i] !== '.' && segments[i] !== '') resolved.push(segments[i]);
+            }
+            var full = resolved.join('/');
+            if (files[full]) return full;
+            var exts = ['.tsx', '.ts', '.jsx', '.js'];
+            for (var j = 0; j < exts.length; j++) {
+                if (files[full + exts[j]]) return full + exts[j];
+            }
+            for (var k = 0; k < exts.length; k++) {
+                if (files[full + '/index' + exts[k]]) return full + '/index' + exts[k];
+            }
+            return full;
+        }
+
+        // ================================================================
+        // 4. MODULE LOADER  –  Babel transpiles, then executes
+        // ================================================================
+        var moduleCache = {};
+
+        function requireModule(id, parentId) {
+            // External / CDN packages
+            if (externals.hasOwnProperty(id)) return externals[id];
+
+            // Resolve path
+            var resolved = parentId ? resolvePath(parentId, id) : id;
+
+            // Check externals again after @/ resolution
+            if (externals.hasOwnProperty(resolved)) return externals[resolved];
+
+            // CSS imports → already in <style>
+            if (resolved.endsWith('.css')) return {};
+
+            // Static asset imports → return path string
+            if (/\.(svg|png|jpe?g|gif|webp|ico|mp4|webm|ogg|mp3|wav|woff2?|eot|ttf|otf)$/i.test(resolved)) {
+                return { default: '/' + resolved, __esModule: true };
+            }
+
+            // Cached
+            if (moduleCache[resolved]) return moduleCache[resolved].exports;
+
+            // Source lookup
+            var source = files[resolved];
+            if (!source) {
+                console.warn('[Preview] Module not found:', id, parentId ? '(from ' + parentId + ')' : '', '-> resolved:', resolved);
+                // Return a lenient proxy so the app doesn't crash on missing non-critical deps
+                return new Proxy({}, {
+                    get: function (_, p) {
+                        if (typeof p !== 'string' || p === '__esModule' || p === 'default') return undefined;
+                        return function () { return null; };
+                    }
+                });
+            }
+
+            // Allocate cache entry BEFORE execution (handles circular deps)
+            var mod = { exports: {} };
+            moduleCache[resolved] = mod;
+
+            try {
+                var transpiled = Babel.transform(source, {
+                    presets: [
+                        ['react', { runtime: 'classic' }],
+                        ['typescript', { allExtensions: true, isTSX: true }]
+                    ],
+                    plugins: ['transform-modules-commonjs'],
+                    filename: resolved
+                }).code;
+
+                var fn = new Function('module', 'exports', 'require', 'React', transpiled);
+                fn(mod, mod.exports, function (dep) { return requireModule(dep, resolved); }, React);
+            } catch (err) {
+                console.error('[Preview] Compile error in ' + resolved + ':', err);
+                if (window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'PreviewError', subType: 'Compile',
+                        payload: { message: err.message, source: resolved, stack: err.stack || '' }
+                    }, '*');
+                }
+            }
+
+            return mod.exports;
+        }
+
+        // ================================================================
+        // 5. ERROR FORWARDING  –  sends runtime errors to the parent IDE
+        // ================================================================
+        window.onerror = function (msg, src, line, col, err) {
+            if (window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'PreviewError', subType: 'Runtime',
+                    payload: {
+                        message: String(msg), source: src || '',
+                        lineno: line || 0, colno: col || 0,
+                        stack: err ? err.stack : 'Error: ' + msg
+                    }
+                }, '*');
+            }
+            return false;
+        };
+
+        // ================================================================
+        // 6. BOOT  –  find entry point and start the React app
+        // ================================================================
+        try {
+            var entries = [
+                'src/main.tsx', 'src/main.ts', 'src/main.jsx', 'src/main.js',
+                'src/index.tsx', 'src/index.ts', 'src/index.jsx', 'src/index.js'
+            ];
+            var booted = false;
+            for (var i = 0; i < entries.length; i++) {
+                if (files[entries[i]]) {
+                    requireModule(entries[i]);
+                    booted = true;
+                    break;
+                }
+            }
+            if (!booted) {
+                document.getElementById('root').innerHTML =
+                    '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:system-ui;color:#94a3b8;">' +
+                    '<div style="text-align:center"><p style="font-size:1.1rem;font-weight:600;">No entry point found</p>' +
+                    '<p style="font-size:0.85rem;margin-top:0.5rem;opacity:0.7">Expected <code>src/main.tsx</code> or <code>src/index.tsx</code></p></div></div>';
+            }
+        } catch (bootErr) {
+            console.error('[Preview] Boot failed:', bootErr);
+            document.getElementById('root').innerHTML =
+                '<pre style="color:#ef4444;padding:1.5rem;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:0.85rem;background:#1e1e1e;min-height:100vh;margin:0;">' +
+                bootErr.message + '\n\n' + (bootErr.stack || '') + '<\/pre>';
+        }
+    })();
+    </script>
+</body>
+</html>
