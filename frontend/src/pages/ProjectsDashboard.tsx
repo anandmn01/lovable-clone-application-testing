@@ -55,6 +55,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { PricingModal } from "@/components/PricingModal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type View = "home" | "projects" | "templates" | "history" | "brandkit" | "settings";
@@ -497,9 +498,14 @@ export function ProjectsDashboard() {
 
   const userInfo = getUserInfo();
   const firstName = userInfo?.name?.split(" ")[0] || "there";
+  const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
 
   useEffect(() => {
     fetchProjects();
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("upgrade") === "true") {
+      setIsPricingModalOpen(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -1042,15 +1048,24 @@ export function ProjectsDashboard() {
           )}
 
           {/* Upgrade Banner */}
-          <div className="mx-3 mb-3 p-3 rounded-xl bg-gradient-to-br from-violet-900/40 to-blue-900/30 border border-violet-500/20">
+          <div
+            onClick={() => setIsPricingModalOpen(true)}
+            className="mx-3 mb-3 p-3 rounded-xl bg-gradient-to-br from-violet-900/40 to-blue-900/30 border border-violet-500/20 hover:border-violet-500/40 transition-all cursor-pointer group"
+          >
             <div className="flex items-center gap-1.5 mb-1">
-              <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+              <Sparkles className="w-3.5 h-3.5 text-violet-400 group-hover:scale-110 transition-transform" />
               <span className="text-xs font-semibold text-violet-300">Upgrade to Pro</span>
             </div>
             <p className="text-[11px] text-slate-500 leading-relaxed mb-2.5">
               Unlock unlimited websites, custom domains, and more.
             </p>
-            <button className="w-full py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-medium transition-all">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsPricingModalOpen(true);
+              }}
+              className="w-full py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-medium transition-all shadow-md shadow-violet-900/30"
+            >
               Upgrade Now ✦
             </button>
           </div>
@@ -1090,10 +1105,14 @@ export function ProjectsDashboard() {
               <button className="p-2 rounded-lg bg-white/6 hover:bg-white/10 text-slate-400 transition-all border border-white/8">
                 <MoreHorizontal className="w-4 h-4" />
               </button>
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/6 border border-white/8">
+              <div
+                onClick={() => setIsPricingModalOpen(true)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/6 hover:bg-white/10 text-slate-300 hover:text-white border border-white/8 cursor-pointer transition-all"
+                title="View pricing plans"
+              >
                 <div className="w-4 h-4 rounded-full bg-gradient-to-br from-violet-400 to-blue-400" />
-                <span className="text-xs text-slate-300 font-medium">Credits</span>
-                <span className="text-xs font-bold text-white">2,450</span>
+                <span className="text-xs font-medium">Credits</span>
+                <span className="text-xs font-bold text-violet-300">Upgrade ✦</span>
               </div>
             </div>
           </header>
@@ -1260,6 +1279,9 @@ export function ProjectsDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── Pricing & Stripe Subscription Modal ─────────────────────────────── */}
+      <PricingModal open={isPricingModalOpen} onOpenChange={setIsPricingModalOpen} />
     </>
   );
 }

@@ -1,15 +1,16 @@
 package com.codingshuttle.projects.lovable_clone.entity;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 @Getter
 @Setter
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Entity
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Plan {
 
     @Id

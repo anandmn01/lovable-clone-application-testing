@@ -1,4 +1,4 @@
-import { ChatMessage, DeployResponse, FileNode, LoginCredentials, LoginResponse, ProjectSummaryResponse, ProjectRequest, ProjectResponse, ProjectMember, ProjectRole, SignupRequest, AuthResponse } from "./types";
+import { ChatMessage, DeployResponse, FileNode, LoginCredentials, LoginResponse, ProjectSummaryResponse, ProjectRequest, ProjectResponse, ProjectMember, ProjectRole, SignupRequest, AuthResponse, PlanResponse, SubscriptionResponse, CheckoutResponse, PortalResponse } from "./types";
 
 const BASE_URL = "http://localhost:8080";
 
@@ -390,6 +390,77 @@ export const api = {
       });
 
     return () => controller.abort();
-  }
+  },
 
+  // ─── Billing & Stripe Subscriptions ─────────────────────────────────────────
+  async getPlans(): Promise<PlanResponse[]> {
+    const response = await fetch(`${BASE_URL}/api/plans`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error("Failed to fetch plans");
+    const text = await response.text();
+    return text ? JSON.parse(text) : [];
+  },
+
+  async getMySubscription(): Promise<SubscriptionResponse> {
+    const response = await fetch(`${BASE_URL}/api/me/subscription`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error("Failed to fetch subscription details");
+    const text = await response.text();
+    return text ? JSON.parse(text) : {};
+  },
+
+  async createCheckoutSession(planId: number): Promise<CheckoutResponse> {
+    const response = await fetch(`${BASE_URL}/api/payments/checkout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({ planId }),
+    });
+
+    const text = await response.text();
+    if (!response.ok) {
+      let msg = text;
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed.message) msg = parsed.message;
+      } catch {}
+      throw new Error(msg || `Checkout session failed with status ${response.status}`);
+    }
+
+    if (!text) {
+      throw new Error("Server returned an empty checkout response. Please restart your Spring Boot backend with the latest code and Stripe secret key.");
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error("Invalid response from server: " + text.slice(0, 100));
+    }
+  },
+
+  async openCustomerPortal(): Promise<PortalResponse> {
+    const response = await fetch(`${BASE_URL}/api/payments/portal`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+    });
+
+    const text = await response.text();
+    if (!response.ok) {
+      let msg = text;
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed.message) msg = parsed.message;
+      } catch {}
+      throw new Error(msg || `Customer portal failed with status ${response.status}`);
+    }
+
+    return text ? JSON.parse(text) : { portalUrl: "" };
+  },
 };

@@ -106,3 +106,42 @@ export interface AuthResponse {
     plan?: any;
   };
 }
+
+export interface PlanResponse {
+  id: number;
+  name: string;
+  maxProjects: number;
+  maxTokensPerDay: number;
+  unlimitedAi: boolean;
+  price?: string;
+}
+
+export type SubscriptionStatus =
+  | 'INCOMPLETE'
+  | 'INCOMPLETE_EXPIRED'
+  | 'TRIALING'
+  | 'ACTIVE'
+  | 'PAST_DUE'
+  | 'CANCELED'
+  | 'UNPAID';
+
+export interface SubscriptionResponse {
+  id?: number;
+  plan?: PlanResponse;
+  status?: SubscriptionStatus;
+  currentPeriodStart?: string;
+  currentPeriodEnd?: string;
+  cancelAtPeriodEnd?: boolean;
+}
+
+export interface CheckoutRequest {
+  planId: number;
+}
+
+export interface CheckoutResponse {
+  checkoutUrl: string;
+}
+
+export interface PortalResponse {
+  portalUrl: string;
+}
