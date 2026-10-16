@@ -136,7 +136,22 @@ __FILE_REGISTRATIONS__
             'react-router-dom': {
                 BrowserRouter:  function (p) { return p.children; },
                 HashRouter:     function (p) { return p.children; },
-                Routes:         function (p) { return p.children; },
+                Routes: function (p) {
+                    // Pick the first Route child whose path matches '/' (the preview default),
+                    // skipping the catch-all '*' route so NotFound never renders.
+                    var children = React.Children.toArray(p.children);
+                    // Try exact '/' match first
+                    for (var i = 0; i < children.length; i++) {
+                        var c = children[i];
+                        if (c && c.props && c.props.path === '/') return c.props.element || null;
+                    }
+                    // Fallback: first non-catch-all route
+                    for (var j = 0; j < children.length; j++) {
+                        var d = children[j];
+                        if (d && d.props && d.props.path && d.props.path !== '*') return d.props.element || null;
+                    }
+                    return null;
+                },
                 Route:          function (p) { return p.element || null; },
                 Link:           React.forwardRef(function (p, r) { return React.createElement('a', Object.assign({ href: p.to, ref: r }, p)); }),
                 NavLink:        React.forwardRef(function (p, r) { return React.createElement('a', Object.assign({ href: p.to, ref: r }, p)); }),

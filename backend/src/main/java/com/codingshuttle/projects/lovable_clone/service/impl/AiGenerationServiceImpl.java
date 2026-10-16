@@ -113,15 +113,23 @@ public class AiGenerationServiceImpl implements AiGenerationService {
                 })
                 .onErrorResume(error -> {
                     log.error("Error during streaming for projectId: {}", projectId, error);
-                    String userMsg = "AI generation failed. Please check your model configuration.";
-                    String errStr = error.getMessage() != null ? error.getMessage() : "";
-                    if (errStr.contains("429") || errStr.toLowerCase().contains("rate limit")) {
+
+                    // Walk full exception chain to find the real message
+                    String errStr = buildErrorString(error);
+
+                    String userMsg;
+                    if (errStr.contains("429") || errStr.toLowerCase().contains("rate limit") || errStr.toLowerCase().contains("quota")) {
                         userMsg = "⚠️ Gemini API rate limit or quota exceeded. Please check your Google AI Studio quota or try again shortly.";
-                    } else if (errStr.contains("503") || errStr.toLowerCase().contains("high demand")) {
-                        userMsg = "⚠️ Gemini model is currently experiencing high demand (503). Please try again in a few moments.";
+                    } else if (errStr.contains("503") || errStr.toLowerCase().contains("high demand") || errStr.toLowerCase().contains("unavailable")) {
+                        userMsg = "⚠️ Gemini model is currently experiencing high demand. Please try again in a few moments.";
+                    } else if (errStr.contains("404") || errStr.toLowerCase().contains("not found") || errStr.toLowerCase().contains("no longer available")) {
+                        userMsg = "⚠️ Gemini model not found. Please check the model name in your configuration.";
                     } else if (!errStr.isBlank()) {
                         userMsg = "AI generation failed: " + errStr;
+                    } else {
+                        userMsg = "AI generation failed. Please try again.";
                     }
+
                     String finalErrorXml = "<message phase=\"completed\">" + userMsg + "</message>";
                     Schedulers.boundedElastic().schedule(() -> {
                         try {
@@ -181,6 +189,20 @@ public class AiGenerationServiceImpl implements AiGenerationService {
                 });
 
         chatEventRepository.saveAll(chatEventList);
+    }
+
+    private String buildErrorString(Throwable error) {
+        StringBuilder sb = new StringBuilder();
+        Throwable t = error;
+        while (t != null) {
+            if (t.getMessage() != null) {
+                sb.append(t.getMessage()).append(" ");
+            }
+            // Also check toString for exception type names (e.g. ServiceUnavailableException)
+            sb.append(t.getClass().getSimpleName()).append(" ");
+            t = t.getCause();
+        }
+        return sb.toString().trim();
     }
 
     private ChatSession createChatSessionIfNotExists(Long projectId, Long userId) {

@@ -17,6 +17,7 @@ import { RuntimeErrorAlert, RuntimeError } from "@/components/RuntimeErrorAlert"
 import { generateGradient, cn } from "@/lib/utils";
 import { ProjectResponse } from "@/lib/types";
 import { ShareDialog } from "@/components/ShareDialog";
+import { PublishDialog } from "@/components/PublishDialog";
 
 type ViewMode = "code" | "preview";
 
@@ -398,9 +399,7 @@ Please analyze this error and fix the code to resolve it.`;
               <Button variant="outline" size="sm" className="h-8 text-xs">
                 Upgrade
               </Button>
-              <Button size="sm" className="h-8 text-xs bg-primary hover:bg-primary/90">
-                Publish
-              </Button>
+              <PublishDialog projectId={projectId!} projectName={project?.name} />
             </>
           )}
           <Button
